@@ -2,12 +2,19 @@
 
 Node.js + Express + MongoDB API. Use this as its own repo.
 
-## Setup
+## 1. Install MongoDB
+
+You need MongoDB running before the backend can start. See **[MONGODB_SETUP.md](./MONGODB_SETUP.md)** for:
+
+- **Option A:** Install MongoDB locally on Windows (`winget install MongoDB.Server` or installer)
+- **Option B:** Use MongoDB Atlas (free cloud; no local install)
+
+## 2. Setup
 
 ```bash
 npm install
 cp .env.example .env
-# Edit .env: set MONGODB_URI if needed
+# Edit .env: set MONGODB_URI only if you use Atlas or a custom URL
 ```
 
 ## Run
