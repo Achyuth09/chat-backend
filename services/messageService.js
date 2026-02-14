@@ -10,6 +10,6 @@ export async function getByRoom(roomId) {
 /**
  * Create a new message. Returns the saved document.
  */
-export async function create({ roomId, sender, text }) {
-  return Message.create({ roomId, sender, text });
+export async function create({ roomId, sender, text = '', attachments = [] }) {
+  return Message.create({ roomId, sender, text, attachments });
 }

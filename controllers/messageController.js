@@ -38,11 +38,13 @@ export async function getMessages(req, res) {
  */
 export async function createMessage(req, res) {
   try {
-    const { roomId, text } = req.body;
+    const { roomId } = req.body;
+    const text = String(req.body?.text || '').trim();
+    const attachments = Array.isArray(req.body?.attachments) ? req.body.attachments : [];
     const sender = req.user?.username;
-    if (!roomId || !sender || !text) {
+    if (!roomId || !sender || (!text && attachments.length === 0)) {
       return res.status(400).json({
-        error: 'roomId and text are required',
+        error: 'roomId and text or attachments are required',
       });
     }
     const access = await canAccessRoom(roomId, req.user.id);
@@ -50,7 +52,7 @@ export async function createMessage(req, res) {
       return res.status(403).json({ error: 'You do not have access to this room' });
     }
 
-    const message = await messageService.create({ roomId, sender, text });
+    const message = await messageService.create({ roomId, sender, text, attachments });
     logger.info('message created via REST', {
       roomId,
       sender,

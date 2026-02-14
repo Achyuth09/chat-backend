@@ -7,11 +7,15 @@ import { logger } from '../utils/logger.js';
 export async function listUsers(req, res) {
   try {
     const users = await User.find({ _id: { $ne: req.user.id } })
-      .select('_id username')
+      .select('_id username avatarUrl')
       .sort({ username: 1 })
       .lean();
 
-    const result = users.map((u) => ({ id: u._id.toString(), username: u.username }));
+    const result = users.map((u) => ({
+      id: u._id.toString(),
+      username: u.username,
+      avatarUrl: u.avatarUrl || '',
+    }));
     logger.info('users listed', { requester: req.user?.username, count: result.length });
     res.json(result);
   } catch (err) {

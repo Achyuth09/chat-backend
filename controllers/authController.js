@@ -54,7 +54,7 @@ export async function signup(req, res) {
     logger.info('signup success', { userId: user._id.toString(), username: user.username });
     res.status(201).json({
       token,
-      user: { id: user._id, username: user.username },
+      user: { id: user._id, username: user.username, avatarUrl: user.avatarUrl || '' },
     });
   } catch (err) {
     logger.error('signup failed', { error: err.message });
@@ -85,7 +85,7 @@ export async function login(req, res) {
 
     res.json({
       token,
-      user: { id: user._id, username: user.username },
+      user: { id: user._id, username: user.username, avatarUrl: user.avatarUrl || '' },
     });
   } catch (err) {
     logger.error('login failed', { error: err.message });
