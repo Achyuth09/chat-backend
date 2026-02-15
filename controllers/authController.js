@@ -36,8 +36,17 @@ export async function signup(req, res) {
     if (!username || !password) {
       return res.status(400).json({ error: 'Username and password required' });
     }
-    if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
+    const hasUpper = /[A-Z]/.test(password);
+    const hasLower = /[a-z]/.test(password);
+    const hasNumber = /\d/.test(password);
+    const hasSymbol = /[^A-Za-z0-9]/.test(password);
+    if (!hasUpper || !hasLower || !hasNumber || !hasSymbol) {
+      return res.status(400).json({
+        error: 'Password must include uppercase, lowercase, number, and special character',
+      });
     }
 
     const normalizedUsername = username.trim().toLowerCase();

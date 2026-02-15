@@ -26,6 +26,29 @@ export async function getFriendRequests(req, res) {
   }
 }
 
+export async function getSentFriendRequests(req, res) {
+  try {
+    const friendRequests = await FriendRequest.find({ from: req.user.id, status: 'pending' })
+      .populate('to', '_id username avatarUrl')
+      .lean();
+    res.json(
+      friendRequests.map((fr) => ({
+        id: fr._id.toString(),
+        to: {
+          id: fr.to?._id?.toString?.() || '',
+          username: fr.to?.username || '',
+          avatarUrl: fr.to?.avatarUrl || '',
+        },
+        status: fr.status,
+        createdAt: fr.createdAt,
+      }))
+    );
+  } catch (err) {
+    logger.error('get sent friend requests failed', { by: req.user?.username, error: err.message });
+    res.status(500).json({ error: 'Failed to get sent friend requests' });
+  }
+}
+
 export async function createFriendRequest(req, res) {
   try {
     const { to } = req.body;

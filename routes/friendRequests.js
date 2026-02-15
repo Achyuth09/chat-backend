@@ -4,6 +4,7 @@ import * as friendRequestController from '../controllers/friendRequestController
 const router = Router();
 
 router.get('/', friendRequestController.getFriendRequests);
+router.get('/sent', friendRequestController.getSentFriendRequests);
 router.post('/', friendRequestController.createFriendRequest);
 router.post('/:id/accept', friendRequestController.acceptFriendRequest);
 router.delete('/:id', friendRequestController.deleteFriendRequest);
