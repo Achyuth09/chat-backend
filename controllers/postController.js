@@ -1,6 +1,8 @@
 import mongoose from 'mongoose';
 import Post from '../models/Post.js';
+import FriendRequest from '../models/FriendRequest.js';
 import { logger } from '../utils/logger.js';
+import { createNotification } from '../services/notificationService.js';
 
 function mapMedia(media = []) {
   return media.map((item) => ({
@@ -53,8 +55,24 @@ export async function listPosts(req, res) {
     const limit = Math.min(Number(req.query.limit || 20), 50);
     const page = Math.max(Number(req.query.page || 1), 1);
     const skip = (page - 1) * limit;
+    const accepted = await FriendRequest.find({
+      status: 'accepted',
+      $or: [{ from: req.user.id }, { to: req.user.id }],
+    })
+      .select('from to')
+      .lean();
 
-    const posts = await Post.find({})
+    const friendIds = accepted
+      .map((fr) => {
+        const from = fr.from?.toString?.() || '';
+        const to = fr.to?.toString?.() || '';
+        return from === req.user.id ? to : from;
+      })
+      .filter(Boolean);
+
+    const visibleAuthorIds = [req.user.id, ...friendIds];
+
+    const posts = await Post.find({ author: { $in: visibleAuthorIds } })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -154,6 +172,12 @@ export async function toggleLike(req, res) {
     } else {
       post.likes.push(req.user.id);
       likedByMe = true;
+      await createNotification({
+        recipient: post.author.toString(),
+        actor: req.user.id,
+        type: 'post_liked',
+        post: post._id.toString(),
+      });
     }
     await post.save();
     res.json({ likesCount: post.likes.length, likedByMe });
@@ -174,6 +198,13 @@ export async function addComment(req, res) {
 
     post.comments.push({ author: req.user.id, text });
     await post.save();
+    await createNotification({
+      recipient: post.author.toString(),
+      actor: req.user.id,
+      type: 'post_commented',
+      post: post._id.toString(),
+      commentText: text,
+    });
 
     const hydrated = await Post.findById(post._id)
       .populate('author', '_id username avatarUrl')
@@ -188,5 +219,28 @@ export async function addComment(req, res) {
   } catch (err) {
     logger.error('add comment failed', { by: req.user?.username, error: err.message });
     res.status(500).json({ error: 'Failed to add comment' });
+  }
+}
+
+/**
+ * GET /api/posts/me – list current user's posts.
+ */
+export async function listMyPosts(req, res) {
+  try {
+    const posts = await Post.find({ author: req.user.id })
+      .sort({ createdAt: -1 })
+      .populate('author', '_id username avatarUrl')
+      .populate('comments.author', '_id username avatarUrl')
+      .lean();
+
+    const items = posts.map((post) => {
+      const dto = toPostDto(post);
+      dto.likedByMe = (post.likes || []).some((id) => id.toString() === req.user.id);
+      return dto;
+    });
+    res.json({ items });
+  } catch (err) {
+    logger.error('list my posts failed', { by: req.user?.username, error: err.message });
+    res.status(500).json({ error: 'Failed to load your posts' });
   }
 }

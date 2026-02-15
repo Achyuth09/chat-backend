@@ -1,4 +1,5 @@
 import Group from '../models/Group.js';
+import FriendRequest from '../models/FriendRequest.js';
 
 function parseDmRoom(roomId) {
   const parts = roomId.split(':');
@@ -19,7 +20,20 @@ export async function canAccessRoom(roomId, userId) {
 
   const dmUsers = parseDmRoom(roomId);
   if (dmUsers) {
-    return { ok: dmUsers.includes(userId), reason: 'dm member mismatch' };
+    if (!dmUsers.includes(userId)) {
+      return { ok: false, reason: 'dm member mismatch' };
+    }
+    const [userA, userB] = dmUsers;
+    const accepted = await FriendRequest.findOne({
+      status: 'accepted',
+      $or: [
+        { from: userA, to: userB },
+        { from: userB, to: userA },
+      ],
+    })
+      .select('_id')
+      .lean();
+    return { ok: Boolean(accepted), reason: 'friend request not accepted' };
   }
 
   const groupId = parseGroupRoom(roomId);
