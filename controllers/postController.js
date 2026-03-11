@@ -3,6 +3,7 @@ import Post from '../models/Post.js';
 import FriendRequest from '../models/FriendRequest.js';
 import { logger } from '../utils/logger.js';
 import { createNotification } from '../services/notificationService.js';
+import { emitActivity } from '../utils/activityEmitter.js';
 
 function mapMedia(media = []) {
   return media.map((item) => ({
@@ -172,12 +173,14 @@ export async function toggleLike(req, res) {
     } else {
       post.likes.push(req.user.id);
       likedByMe = true;
+      const recipientId = post.author.toString();
       await createNotification({
-        recipient: post.author.toString(),
+        recipient: recipientId,
         actor: req.user.id,
         type: 'post_liked',
         post: post._id.toString(),
       });
+      emitActivity(recipientId);
     }
     await post.save();
     res.json({ likesCount: post.likes.length, likedByMe });
@@ -198,13 +201,15 @@ export async function addComment(req, res) {
 
     post.comments.push({ author: req.user.id, text });
     await post.save();
+    const recipientId = post.author.toString();
     await createNotification({
-      recipient: post.author.toString(),
+      recipient: recipientId,
       actor: req.user.id,
       type: 'post_commented',
       post: post._id.toString(),
       commentText: text,
     });
+    emitActivity(recipientId);
 
     const hydrated = await Post.findById(post._id)
       .populate('author', '_id username avatarUrl')

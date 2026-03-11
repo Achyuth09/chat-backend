@@ -2,6 +2,7 @@ import { logger } from '../utils/logger.js';
 import User from '../models/User.js';
 import FriendRequest from '../models/FriendRequest.js';
 import { createNotification } from '../services/notificationService.js';
+import { emitActivity } from '../utils/activityEmitter.js';
 
 export async function getFriendRequests(req, res) {
   try {
@@ -87,6 +88,7 @@ export async function createFriendRequest(req, res) {
       type: 'friend_request_received',
       friendRequest: result._id,
     });
+    emitActivity(to);
     res.status(201).json({
       id: result._id.toString(),
       from: req.user.id,
@@ -107,7 +109,11 @@ export async function deleteFriendRequest(req, res) {
     const canModify =
       request.from.toString() === req.user.id || request.to.toString() === req.user.id;
     if (!canModify) return res.status(403).json({ error: 'Not allowed' });
+    const fromId = request.from.toString();
+    const toId = request.to.toString();
     await FriendRequest.findByIdAndDelete(id);
+    emitActivity(fromId);
+    emitActivity(toId);
     res.status(204).send();
   } catch (err) {
     logger.error('delete friend request failed', { by: req.user?.username, error: err.message });
@@ -125,12 +131,14 @@ export async function acceptFriendRequest(req, res) {
     }
     request.status = 'accepted';
     await request.save();
+    const fromId = request.from.toString();
     await createNotification({
-      recipient: request.from.toString(),
+      recipient: fromId,
       actor: req.user.id,
       type: 'friend_request_accepted',
       friendRequest: request._id.toString(),
     });
+    emitActivity(fromId);
     res.json({ ok: true, status: 'accepted' });
   } catch (err) {
     logger.error('accept friend request failed', { by: req.user?.username, error: err.message });

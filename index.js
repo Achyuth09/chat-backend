@@ -14,6 +14,7 @@ import User from './models/User.js';
 import Group from './models/Group.js';
 import { canAccessRoom } from './utils/roomAccess.js';
 import { createRequestLogger, logger } from './utils/logger.js';
+import { init as initActivityEmitter } from './utils/activityEmitter.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -32,7 +33,9 @@ const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5173,http:
 const io = new Server(server, {
   cors: { origin: allowedOrigins, credentials: true },
 });
+initActivityEmitter(io);
 const activeCallParticipants = new Map();
+const onlineUsers = new Set();
 
 function parseDmRoom(roomId) {
   const parts = String(roomId || '').split(':');
@@ -50,6 +53,7 @@ app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(cookieParser());
 app.use(express.json());
 app.use(createRequestLogger());
+
 app.use('/api', routes);
 
 io.on('connection', (socket) => {
@@ -68,6 +72,9 @@ io.on('connection', (socket) => {
       if (user) {
         socket.user = { id: user._id.toString(), username: user.username };
         socket.join(`user:${socket.user.id}`);
+        onlineUsers.add(socket.user.id);
+        socket.emit('online_users', { userIds: Array.from(onlineUsers) });
+        io.emit('user_online', { userId: socket.user.id });
         logger.info('socket authenticated', {
           socketId: socket.id,
           userId: socket.user.id,
@@ -314,6 +321,8 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', (reason) => {
     if (socket.user?.id) {
+      onlineUsers.delete(socket.user.id);
+      io.emit('user_offline', { userId: socket.user.id });
       for (const [roomId, participants] of activeCallParticipants.entries()) {
         if (participants.has(socket.user.id)) {
           participants.delete(socket.user.id);
