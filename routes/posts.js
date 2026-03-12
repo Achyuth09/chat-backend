@@ -4,6 +4,7 @@ import * as postController from '../controllers/postController.js';
 const router = Router();
 
 router.get('/me', postController.listMyPosts);
+router.get('/user/:userId', postController.listPostsByUser);
 router.get('/', postController.listPosts);
 router.post('/', postController.createPost);
 router.get('/:postId', postController.getPostById);

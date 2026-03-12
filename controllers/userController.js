@@ -46,6 +46,22 @@ export async function listUsers(req, res) {
   }
 }
 
+export async function getUserById(req, res) {
+  try {
+    const { id } = req.params;
+    const targetUser = await User.findById(id).select('_id username avatarUrl');
+    if (!targetUser) return res.status(404).json({ error: 'User not found' });
+    res.json({
+      id: targetUser._id.toString(),
+      username: targetUser.username,
+      avatarUrl: targetUser.avatarUrl || '',
+    });
+  } catch (err) {
+    logger.error('get user by id failed', { by: req.user?.username, error: err.message });
+    res.status(500).json({ error: 'Failed to get user' });
+  }
+}
+
 export async function getUserByUsername(req, res) {
   try {
     const { username } = req.params;

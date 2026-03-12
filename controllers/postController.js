@@ -228,6 +228,49 @@ export async function addComment(req, res) {
 }
 
 /**
+ * GET /api/posts/user/:userId – list posts by a user. Visible only if self or friend.
+ */
+export async function listPostsByUser(req, res) {
+  try {
+    const { userId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ error: 'Invalid user id' });
+    }
+    const isSelf = userId === req.user.id;
+    let canView = isSelf;
+    if (!isSelf) {
+      const accepted = await FriendRequest.findOne({
+        status: 'accepted',
+        $or: [
+          { from: req.user.id, to: userId },
+          { from: userId, to: req.user.id },
+        ],
+      }).lean();
+      canView = !!accepted;
+    }
+    if (!canView) {
+      return res.status(403).json({ error: 'You can only view posts from yourself or friends' });
+    }
+    const posts = await Post.find({ author: userId })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .populate('author', '_id username avatarUrl')
+      .populate('comments.author', '_id username avatarUrl')
+      .lean();
+
+    const items = posts.map((post) => {
+      const dto = toPostDto(post);
+      dto.likedByMe = (post.likes || []).some((id) => id.toString() === req.user.id);
+      return dto;
+    });
+    res.json({ items });
+  } catch (err) {
+    logger.error('list posts by user failed', { by: req.user?.username, error: err.message });
+    res.status(500).json({ error: 'Failed to load posts' });
+  }
+}
+
+/**
  * GET /api/posts/me – list current user's posts.
  */
 export async function listMyPosts(req, res) {

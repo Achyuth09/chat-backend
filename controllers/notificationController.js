@@ -50,3 +50,19 @@ export async function markAllNotificationsRead(req, res) {
     res.status(500).json({ error: 'Failed to mark notifications as read' });
   }
 }
+
+export async function markNotificationRead(req, res) {
+  try {
+    const { id } = req.params;
+    const updated = await Notification.findOneAndUpdate(
+      { _id: id, recipient: req.user.id },
+      { $set: { readAt: new Date() } },
+      { new: true }
+    );
+    if (!updated) return res.status(404).json({ error: 'Notification not found' });
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error('mark notification read failed', { by: req.user?.username, error: err.message });
+    res.status(500).json({ error: 'Failed to mark notification as read' });
+  }
+}
